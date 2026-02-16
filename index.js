@@ -18,9 +18,15 @@ const puerto = 3900;
 app.use(cors()); // middleware del cors para permitir peticiones desde otros dominios
 
 // Convertir body a objeto js
-app.use(express.json()); // middleware, si le paso distintos datos en un post, luego si los quiero usar dentro de mi ruta, voy a tener un objeto js usable en mi codigo 
+app.use(express.json()); // recibir datos con content-type app/json
 
-// Crear rutas
+app.use(express.urlencoded({extended:true})); // form-urlencoded
+
+// RUTAS
+const routes_article = require("./routes/article");
+
+// Cargo las rutas
+app.use("/api", routes_article)
 
 // Crear servidor y escuchar peticiones http
 app.listen(puerto, () => {
