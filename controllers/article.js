@@ -1,39 +1,20 @@
-const validator = require("validator");
 const Article = require("../models/Article");
-const { error } = require("node:console");
+const { validarArticulo } = require("../helpers/validar");
+
+// ==========================================
+// CONTROLADORES
+// ==========================================
 
 const crear = async (req, res) => {
-    
-    // parametros por post a guardar
-    let parametros = req.body;
-
-    // Validar datos
-    try{
-
-        let validar_titulo = !validator.isEmpty(parametros.titulo) && 
-                            validator.isLength(parametros.titulo,{min:5, max:undefined});
-
-        let validar_contenido = !validator.isEmpty(parametros.contenido);
-
-        if(!validar_contenido || !validar_titulo){
-            throw new Error("No se ha validado la informacion");
-        }
-
-    }catch(error){
-        return res.status(400).json({
-            status: "error",
-            mensaje: "Faltan datos por enviar"
-        });
-    }
-
-    // Crear el objeto a guardar y asignar valores
-    const articulo = new Article(parametros);
-
     try {
-        // Guardar el articulo en la base de datos
+        let parametros = req.body;
+
+        // Creación: validación estricta (todos los campos obligatorios)
+        validarArticulo(parametros, true);
+
+        const articulo = new Article(parametros);
         const articuloGuardado = await articulo.save();
 
-        // Devolver resultado
         return res.status(200).json({
             status: "success",
             articulo: articuloGuardado,
@@ -43,26 +24,23 @@ const crear = async (req, res) => {
     } catch (error) {
         return res.status(400).json({
             status: "error",
-            mensaje: "No se ha guardado el articulo"
+            mensaje: error.message
         });
     }
 }
 
 const listar = async (req, res) => {
     try {
-
         const limite = parseInt(req.query.limite) || 0;
+        let consulta = Article.find({}).sort({fecha: -1});
 
-        let consulta = Article.find({}).sort({fecha: -1}); // -1 = descendente 
-
-        // Si hay límite, aplicarlo
         if (limite > 0) {
             consulta = consulta.limit(limite);
         }
 
         const articulos = await consulta;
 
-        if(!articulos || articulos.length === 0){
+        if (!articulos || articulos.length === 0) {
             return res.status(404).json({
                 status: "error",
                 mensaje: "No se han encontrado articulos"
@@ -83,11 +61,12 @@ const listar = async (req, res) => {
     }
 };
 
+
 const obtenerPorId = async (req, res) => {
     try {
         const articulo = await Article.findById(req.params.id);
 
-        if(!articulo){
+        if (!articulo) {
             return res.status(404).json({
                 status: "error",
                 mensaje: "No se ha encontrado el articulo"
@@ -101,6 +80,14 @@ const obtenerPorId = async (req, res) => {
 
     } catch (error) {
         console.error("Error en obtenerPorId:", error.message);
+        
+        if (error.name === 'CastError') {
+            return res.status(400).json({
+                status: "error",
+                mensaje: "El ID proporcionado no es válido"
+            });
+        }
+
         return res.status(500).json({
             status: "error",
             mensaje: "Error al buscar el articulo"
@@ -108,40 +95,28 @@ const obtenerPorId = async (req, res) => {
     }
 };
 
-const borrar = async (req,res) => {
+const actualizar = async (req, res) => {
     try {
+        let parametros = req.body;
 
-        const articulo = await Article.findByIdAndDelete(req.params.id);
+        // Actualización: validación flexible (solo valida lo que se envía)
+        validarArticulo(parametros, false); // o simplemente validarArticulo(parametros)
 
-        if(!articulo) {
-             return res.status(404).json({
-                status: "error",
-                mensaje: "No se ha encontrado el articulo"
-            });
-        }
-
-        return res.status(200).json({
-            status: "success",
-            mensaje: "Articulo borrado",
-            articulo: articulo
+        // Eliminar campos undefined para no sobreescribir con null
+        Object.keys(parametros).forEach(key => {
+            if (parametros[key] === undefined) {
+                delete parametros[key];
+            }
         });
 
-    }catch(error) {
-        console.error("Error en borrar", error.message);
-        return res.status(500).json({
-            status: "error",
-            mensaje: "Error al borrar el articulo"
-        });
-    }
-}
+        const articulo = await Article.findByIdAndUpdate(
+            req.params.id, 
+            parametros, 
+            { new: true }
+        );
 
-const actualizar = async (req,res) => {
-    try {
-
-        const articulo = await Article.findByIdAndUpdate(req.params.id,req.body,{new: true});
-
-        if(!articulo) {
-             return res.status(404).json({
+        if (!articulo) {
+            return res.status(404).json({
                 status: "error",
                 mensaje: "No se ha encontrado el articulo"
             });
@@ -153,15 +128,39 @@ const actualizar = async (req,res) => {
             articulo: articulo
         });
 
-    }catch(error) {
-        console.error("Error en borrar", error.message);
-        return res.status(500).json({
+    } catch (error) {
+        return res.status(400).json({
             status: "error",
-            mensaje: "Error al actualizar el articulo"
+            mensaje: error.message
         });
     }
 }
 
+const borrar = async (req, res) => {
+    try {
+        const articulo = await Article.findByIdAndDelete(req.params.id);
+
+        if (!articulo) {
+            return res.status(404).json({
+                status: "error",
+                mensaje: "No se ha encontrado el articulo"
+            });
+        }
+
+        return res.status(200).json({
+            status: "success",
+            mensaje: "Articulo borrado",
+            articulo: articulo
+        });
+
+    } catch (error) {
+        console.error("Error en borrar:", error.message);
+        return res.status(500).json({
+            status: "error",
+            mensaje: "Error al borrar el articulo"
+        });
+    }
+}
 module.exports = {
     crear,
     listar,
