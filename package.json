@@ -1,29 +1,12 @@
 {
   "name": "api-rest-node",
   "version": "1.0.0",
-  "description": "API Rest con NodeJS",
-  "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "nodemon index.js"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/valentinn362/api-rest-node.git"
-  },
-  "author": "Valentín Alvez Rojas",
-  "license": "MIT",
-  "dependencies": {
-    "cors": "^2.8.6",
-    "dotenv": "^17.3.1",
-    "express": "^5.2.1",
-    "mongoose": "^9.2.1",
-    "multer": "^2.0.2",
-    "validator": "^13.15.26"
+    "backend": "cd backend && npm start",
+    "frontend": "cd frontend && npm start",
+    "dev": "concurrently \"npm run backend\" \"npm run frontend\""
   },
   "devDependencies": {
-    "@types/express": "^5.0.6",
-    "@types/node": "^25.2.3",
-    "nodemon": "^3.1.11"
+    "concurrently": "^8.2.2"
   }
 }
