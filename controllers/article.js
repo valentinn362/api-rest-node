@@ -1,5 +1,7 @@
-const Article = require("../models/Article");
+const fs = require("fs");
+const path = require("path");
 const { validarArticulo } = require("../helpers/validar");
+const Article = require("../models/Article");
 
 // ==========================================
 // CONTROLADORES
@@ -161,10 +163,123 @@ const borrar = async (req, res) => {
         });
     }
 }
+
+const subir = async (req,res) =>{
+
+    //Configurar multer
+
+    // Tomar fichero de imagen subido
+    if(!req.file && !req.files){
+        return res.status(404).json({
+            status: "error",
+            mensaje: "Peticion invalida"
+        })
+    }
+
+    // Nombre del archivo
+    let archivo = req.file.originalname;
+
+    // Extensionm del archivo
+    let archivo_split = archivo.split(".");
+    let extension = archivo_split[1];
+
+    // Comprobar extension correcta
+    if(extension != "png" && extension != "jpg" &&
+        extension != "jpeg" && extension != "gif"){
+       
+        // Borrar archivo y dar respuesta
+        fs.unlink(req.file.path, (error) => {
+            return res.status(400).json({
+                status: "error",
+                mensaje: "Imagen invalida"
+            });
+        })}else{
+        
+        // Buscar y actualizar articulo
+        const articulo = await Article.findByIdAndUpdate(
+            req.params.id, 
+            {imagen: req.file.filename}, 
+            { new: true }
+        );
+
+        if (!articulo) {
+            return res.status(404).json({
+                status: "error",
+                mensaje: "No se ha encontrado el articulo"
+            });
+        }        
+        
+        return res.status(200).json({
+        status: "success",
+        mensaje: "Articulo actualizado",
+        articulo: articulo,
+        archivo: req.file
+    });
+    }
+}
+
+const imagen = (req, res) => {
+
+    let archivo = req.params.archivo;
+    let ruta_fisica = "./imagenes/articulos/"+archivo;
+
+    fs.stat(ruta_fisica, (error, existe) =>{
+        if(existe) {
+            return res.sendFile(path.resolve(ruta_fisica));
+        }else{
+            return res.status(404).json({
+                status: "error",
+                mensaje: "La imagen no existe"
+            });
+        }
+    });
+}
+
+const buscar = async (req, res) => {
+    try {
+        // Sacar el string de búsqueda
+        let busqueda = req.params.busqueda;
+
+        // Find OR con async/await (más limpio)
+        const articulosEncontrados = await Article.find({
+            "$or": [
+                { "titulo": { "$regex": busqueda, "$options": "i" } },
+                { "contenido": { "$regex": busqueda, "$options": "i" } }
+            ]
+        })
+        .sort({ fecha: -1 });
+
+        // Si no encuentra nada
+        if (!articulosEncontrados || articulosEncontrados.length === 0) {
+            return res.status(404).json({
+                status: "error",
+                mensaje: "No se han encontrado artículos"
+            });
+        }
+
+        // Éxito
+        return res.status(200).json({
+            status: "success",  
+            contador: articulosEncontrados.length,
+            articulos: articulosEncontrados
+        });
+
+    } catch (error) {
+        return res.status(500).json({
+            status: "error",
+            mensaje: "Error en la búsqueda",
+            error: error.message
+        });
+    }
+}
+
 module.exports = {
     crear,
     listar,
     obtenerPorId,
     borrar,
-    actualizar
+    actualizar,
+    subir,
+    imagen,
+    buscar
 }
